@@ -6,6 +6,17 @@ import (
 	"net/url"
 )
 
+// ClientID sets the client ID for requests made using the client.  The client ID is
+// typically used to differentate between clients in log entries.  If no client ID is
+// provided a default value will be applied consisting of the string "http-<seq>"
+// where <seq> is a number that increments for each client created.
+func ClientID(id string) ClientOption {
+	return func(c *client) error {
+		c.id = id
+		return nil
+	}
+}
+
 // MaxRetries sets the maximum number of retries for requests made using the client.
 // Individual requests may be configured to override this value on a case-by-case basis.
 func MaxRetries(n uint) ClientOption {
@@ -16,11 +27,11 @@ func MaxRetries(n uint) ClientOption {
 }
 
 // URL sets the base URL for requests made using the client.  The URL may be specified
-// as a string or a *url.URL.
+// as any of:
 //
-// If a string is provided, it will be parsed to ensure it is a valid, absolute URL.
-//
-// If a URL is provided is must be absolute.
+//	string        // a which parses to a valid, absolute URL
+//	url.URL       // a valid, absolute URL
+//	*url.URL      // a valid, absolute URL
 func URL(u any) ClientOption {
 	return func(c *client) error {
 		switch u := u.(type) {
@@ -30,6 +41,12 @@ func URL(u any) ClientOption {
 				return fmt.Errorf("http: URL option: %w: %w", ErrInvalidURL, err)
 			}
 			return URL(url)(c)
+
+		case url.URL:
+			if !u.IsAbs() {
+				return fmt.Errorf("http: URL option: %w: URL must be absolute", ErrInvalidURL)
+			}
+			c.url = u.String()
 
 		case *url.URL:
 			if !u.IsAbs() {

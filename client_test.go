@@ -24,12 +24,12 @@ func TestNewClient(t *testing.T) {
 		{scenario: "no errors",
 			exec: func(t *testing.T) {
 				// ACT
-				result, err := NewClient("name", func(c *client) error { return nil })
+				result, err := NewClient(func(c *client) error { return nil })
 
 				// ASSERT
 				test.That(t, err).IsNil()
 				test.That(t, result).Equals(client{
-					name:    "name",
+					id:      "http-1",
 					wrapped: http.DefaultClient,
 				})
 			},
@@ -40,7 +40,7 @@ func TestNewClient(t *testing.T) {
 				opts := []ClientOption{func(c *client) error { return opterr }}
 
 				// ACT
-				result, err := NewClient("name", opts...)
+				result, err := NewClient(opts...)
 
 				// ASSERT
 				test.Error(t, err).Is(ErrInitialisingClient)
@@ -140,6 +140,10 @@ func TestNewRequest(t *testing.T) {
 	}
 	for _, tc := range testcases {
 		t.Run(tc.scenario, func(t *testing.T) {
+			// ARRANGE
+			seq = 0
+
+			// ACT
 			tc.exec(t)
 		})
 	}
@@ -705,7 +709,7 @@ func TestConvenienceMethods(t *testing.T) {
 				ioReadAll = func(r io.Reader) ([]byte, error) { return nil, readerr }
 
 				// ACT
-				result, err := UnmarshalJSON[map[string]string](ctx, response)
+				result, err := UnmarshalJSON[map[string]string](response)
 
 				// ASSERT
 				test.Error(t, err).Is(readerr)
@@ -718,7 +722,7 @@ func TestConvenienceMethods(t *testing.T) {
 				response := &http.Response{Body: io.NopCloser(bytes.NewReader([]byte("not valid JSON")))}
 
 				// ACT
-				result, err := UnmarshalJSON[map[string]string](ctx, response)
+				result, err := UnmarshalJSON[map[string]string](response)
 
 				// ASSERT
 				test.Error(t, err).Is(ErrInvalidJSON)
@@ -731,24 +735,27 @@ func TestConvenienceMethods(t *testing.T) {
 				response := &http.Response{Body: io.NopCloser(bytes.NewReader([]byte(`{"key":"value"}`)))}
 
 				// ACT
-				result, err := UnmarshalJSON[int](ctx, response)
+				result, err := UnmarshalJSON[int](response)
 
 				// ASSERT
 				test.Error(t, err).Is(ErrInvalidJSON)
-				test.That(t, result).Equals(0)
+				test.That(t, result).IsNil()
 			},
 		},
 		{scenario: "UnmarshalJSON/ok",
 			exec: func(t *testing.T) {
 				// ARRANGE
+				type body struct {
+					Key string `json:"key"`
+				}
 				response := &http.Response{Body: io.NopCloser(bytes.NewReader([]byte(`{"key":"value"}`)))}
 
 				// ACT
-				result, err := UnmarshalJSON[map[string]string](ctx, response)
+				result, err := UnmarshalJSON[body](response)
 
 				// ASSERT
 				test.Error(t, err).Is(nil)
-				test.That(t, result).Equals(map[string]string{"key": "value"})
+				test.That(t, result).Equals(&body{Key: "value"})
 			},
 		},
 	}
