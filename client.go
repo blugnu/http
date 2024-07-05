@@ -23,6 +23,11 @@ var (
 	nextPart       = func(mpr *multipart.Reader) (*multipart.Part, error) { return mpr.NextPart() }
 )
 
+var (
+	// seq is used to generate unique client ids; it is incremented each time a client is created
+	seq int
+)
+
 // RequestOption is a function that applies an option to a request
 type RequestOption = func(*http.Request) error
 
@@ -55,8 +60,8 @@ type ClientOption func(*client) error
 // This type is not exported; functionality is accessed through the implmented
 // HttpClient interface.
 type client struct {
-	// name is used to identify the client in error messages
-	name string
+	// id is used to identify the client in error messages
+	id string
 
 	// url is prepended to the url of any request made with the client
 	url string
@@ -80,9 +85,10 @@ type client struct {
 // The url typically includes the protocol, hostname and port for the client
 // but may include any additional url components consistently required for
 // requests performed using the client.
-func NewClient(name string, opts ...ClientOption) (HttpClient, error) {
+func NewClient(opts ...ClientOption) (HttpClient, error) {
+	seq++
 	w := client{
-		name:    name,
+		id:      "http-" + strconv.Itoa(seq),
 		wrapped: http.DefaultClient,
 	}
 	errs := make([]error, 0, len(opts))
@@ -273,7 +279,7 @@ func (c client) execute(
 ) (*http.Response, error) {
 	rq, err := c.NewRequest(ctx, method, url, opts...)
 	if err != nil {
-		return nil, errorcontext.Errorf(ctx, "%s: %s: %w", c.name, method, err)
+		return nil, errorcontext.Errorf(ctx, "%s: %s: %w", c.id, method, err)
 	}
 	return c.Do(rq)
 }
@@ -283,7 +289,7 @@ func (c client) execute(
 func (c client) Do(rq *http.Request) (*http.Response, error) {
 	ctx := rq.Context()
 	handle := func(r *http.Response, err error) (*http.Response, error) {
-		return r, errorcontext.Errorf(ctx, "%s: %s %s: %w", c.name, rq.Method, rq.URL, err)
+		return r, errorcontext.Errorf(ctx, "%s: %s %s: %w", c.id, rq.Method, rq.URL, err)
 	}
 
 	retries, statusCodes, bodyRequired, stream, err := c.parseRequestHeaders(rq)
@@ -417,11 +423,9 @@ func MapFromMultipartFormData[K comparable, V any](
 //
 // The function returns an error if the body cannot be read or if the body does not
 // contain valid JSON and the result will be the zero value of the generic type.
-func UnmarshalJSON[T any](ctx context.Context, r *http.Response) (T, error) {
-	result := *new(T)
-
-	handle := func(sen, err error) (T, error) {
-		return result, errorcontext.Errorf(ctx, "http.UnmarshalJSON: %w: %w", sen, err)
+func UnmarshalJSON[T any](r *http.Response) (*T, error) {
+	handle := func(sen, err error) (*T, error) {
+		return nil, fmt.Errorf("http.UnmarshalJSON: %w: %w", sen, err)
 	}
 
 	body, err := ioReadAll(r.Body)
@@ -430,9 +434,9 @@ func UnmarshalJSON[T any](ctx context.Context, r *http.Response) (T, error) {
 		return handle(ErrReadingResponseBody, err)
 	}
 
-	if err := json.Unmarshal(body, &result); err != nil {
+	result := new(T)
+	if err := json.Unmarshal(body, result); err != nil {
 		return handle(ErrInvalidJSON, err)
 	}
-
 	return result, nil
 }

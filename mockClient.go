@@ -33,7 +33,7 @@ type MockClient interface {
 // methods for configuring request and response expectations and
 // verifying that those expectations have been met.
 type mockClient struct {
-	name         string
+	id           string
 	hostname     string
 	expectations []*MockRequest
 	unexpected   []*http.Request
@@ -46,7 +46,7 @@ type mockClient struct {
 //
 // # params
 //
-//	name          // used to identify the mock client in test failure reports and errors
+//	id            // used to identify the mock client in test failure reports and errors
 //	wrap          // optional function(s) to wrap the client with some other client
 //	              // implementation, if required; nil functions are ignored
 //
@@ -65,7 +65,7 @@ func NewMockClient(name string, wrap ...func(c interface {
 	Do(*http.Request) (*http.Response, error)
 }) (HttpClient, MockClient) {
 	def := &mockClient{
-		name:     name,
+		id:       name,
 		hostname: "mock://hostname",
 		next:     noExpectedRequests,
 	}
@@ -80,7 +80,8 @@ func NewMockClient(name string, wrap ...func(c interface {
 		mock = wrap(mock)
 	}
 
-	c, _ := NewClient(def.name,
+	c, _ := NewClient(
+		ClientID(def.id),
 		URL(def.hostname),
 		Using(mock),
 	)
@@ -189,7 +190,7 @@ func (mock mockClient) ExpectationsWereMet() error {
 	}
 
 	if len(errs) > 0 {
-		return MockExpectationsError{mock.name, errs}
+		return MockExpectationsError{mock.id, errs}
 	}
 
 	return nil
@@ -207,7 +208,7 @@ func (mock mockClient) ExpectationsWereMet() error {
 func (mock *mockClient) Expect(method string, path string) *MockRequest {
 	if mock.next > 0 {
 		msg := "requests have already been made"
-		panic(fmt.Errorf("%s: %w: %s", mock.name, ErrCannotChangeExpectations, msg))
+		panic(fmt.Errorf("%s: %w: %s", mock.id, ErrCannotChangeExpectations, msg))
 	}
 
 	fqu, err := url.JoinPath(mock.hostname, path)

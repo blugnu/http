@@ -36,11 +36,11 @@ func TestNewMockClient(t *testing.T) {
 
 	// ASSERT
 	if c, ok := test.IsType[client](t, c); ok {
-		test.That(t, c.name).Equals("foo")
+		test.That(t, c.id).Equals("foo")
 		test.That(t, c.url).Equals("mock://hostname")
 	}
 	if m, ok := test.IsType[*mockClient](t, m); ok {
-		test.That(t, m.name).Equals("foo")
+		test.That(t, m.id).Equals("foo")
 		test.That(t, m.hostname).Equals("mock://hostname")
 	}
 	test.IsTrue(t, wrappersAreApplied)
@@ -198,7 +198,7 @@ func TestMockClient(t *testing.T) {
 			exec: func(t *testing.T) {
 				// ARRANGE
 				client := &mockClient{
-					name:       "foo",
+					id:         "foo",
 					next:       noExpectedRequests,
 					unexpected: []*http.Request{{Method: http.MethodGet, URL: &url.URL{Scheme: "http", Host: "hostname", Path: "path"}}},
 				}
@@ -219,7 +219,7 @@ func TestMockClient(t *testing.T) {
 			exec: func(t *testing.T) {
 				// ARRANGE
 				client := &mockClient{
-					name:         "foo",
+					id:           "foo",
 					next:         0,
 					expectations: []*MockRequest{{}},
 					unexpected:   []*http.Request{{Method: http.MethodGet, URL: &url.URL{Scheme: "http", Host: "hostname", Path: "path"}}},
@@ -265,7 +265,7 @@ func TestMockClient(t *testing.T) {
 				// ARRANGE
 				m := http.MethodPost
 				client := &mockClient{
-					name: "foo",
+					id: "foo",
 					expectations: []*MockRequest{
 						{
 							isExpected: true,
@@ -297,7 +297,7 @@ func TestMockClient(t *testing.T) {
 			exec: func(t *testing.T) {
 				// ARRANGE
 				client := &mockClient{
-					name: "foo",
+					id: "foo",
 					expectations: []*MockRequest{
 						{
 							isExpected: true,

@@ -25,6 +25,19 @@ func TestClientOptions(t *testing.T) {
 		scenario string
 		exec     func(t *testing.T)
 	}{
+		{scenario: "ClientID",
+			exec: func(t *testing.T) {
+				// ARRANGE
+				sut := &client{}
+
+				// ACT
+				err := ClientID("foo")(sut)
+
+				// ASSERT
+				test.That(t, err).IsNil()
+				test.That(t, sut).Equals(&client{id: "foo"})
+			},
+		},
 		{scenario: "URL/int",
 			exec: func(t *testing.T) {
 				// ARRANGE
@@ -95,6 +108,33 @@ func TestClientOptions(t *testing.T) {
 
 				// ACT
 				err := URL(url)(client)
+
+				// ASSERT
+				test.Error(t, err).IsNil()
+				test.That(t, client.url).Equals("http://example.com")
+			},
+		},
+		{scenario: "URL/*URL/relative",
+			exec: func(t *testing.T) {
+				// ARRANGE
+				client := &client{}
+				url, _ := url.Parse("example.com")
+
+				// ACT
+				err := URL(*url)(client)
+
+				// ASSERT
+				test.Error(t, err).Is(ErrInvalidURL)
+			},
+		},
+		{scenario: "URL/*URL/successful",
+			exec: func(t *testing.T) {
+				// ARRANGE
+				client := &client{}
+				url, _ := url.Parse("http://example.com")
+
+				// ACT
+				err := URL(*url)(client)
 
 				// ASSERT
 				test.Error(t, err).IsNil()
